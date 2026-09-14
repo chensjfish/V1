@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 1242" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">零跑汽车徽章 Logo</title>
+  <desc id="desc">黑色徽章内嵌白色零跑汽车几何标志</desc>
+
+  <!-- 与 xiaopeng-logo.svg 一致的黑色外部徽章 -->
+  <path
+    fill="#6A1B9A"
+    d="M621 87
+       C393 87 197 269 197 509
+       C197 703 286 820 391 946
+       L601 1183
+       C610 1195 616 1201 621 1201
+       C626 1201 632 1195 641 1183
+       L851 946
+       C956 820 1045 703 1045 509
+       C1045 269 849 87 621 87 Z" />
+
+  <!-- 零跑标志，按 lplogo.png 的比例缩放并置于徽章中心偏上位置 -->
+  <g transform="translate(621 505)">
+    <g transform="scale(0.38)">
+      <g transform="translate(-680 -793.5)" fill="#fff">
+        <!-- 左侧独立折线块 -->
+        <path d="M256 250
+                 L0 410
+                 V1180
+                 L428 1420
+                 V1060
+                 L256 940 Z" />
+
+        <!-- 中间竖向主体与右侧连续折线结构 -->
+        <path d="M680 0
+                 L1360 400
+                 V1180
+                 L936 1440
+                 V1050
+                 L1104 900
+                 V550
+                 L808 390
+                 V1510
+                 L680 1587
+                 L552 1510
+                 V250 Z" />
+      </g>
+    </g>
+  </g>
+</svg>

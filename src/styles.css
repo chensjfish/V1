@@ -1,0 +1,562 @@
+/* ============ 设计规范（Apple Design Tokens） ============ */
+:root {
+  /* 字体 */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC',
+    'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  /* 文本层级 */
+  --ink-1: #1d1d1f;
+  --ink-2: #6e6e73;
+  --ink-3: #86868b;
+  /* 背景与分隔 */
+  --bg: #ffffff;
+  --bg-soft: #f5f5f7;
+  --bg-hover: #ececef;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-soft: rgba(0, 0, 0, 0.05);
+  /* 点缀色（Apple 蓝，克制使用） */
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-soft: rgba(0, 113, 227, 0.08);
+  --accent-ring: rgba(0, 113, 227, 0.16);
+  /* 圆角 */
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 16px;
+  --r-pill: 980px;
+  /* 阴影（柔和双层） */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.06), 0 16px 36px rgba(0, 0, 0, 0.12);
+  /* 动效 */
+  --ease: cubic-bezier(0.28, 0.11, 0.32, 1);
+  --dur: 0.22s;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink-1);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  height: 100%;
+  width: 100%;
+}
+
+/* 地图视图 */
+.map-wrap {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.map-canvas {
+  position: relative;
+  z-index: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.map-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  color: var(--ink-2);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.75);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.map-mask-error {
+  color: #d83931;
+}
+
+/* ============ 门店信息卡（气泡） ============ */
+.map-info {
+  min-width: 80px;
+  max-width: 176px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 0.5px solid var(--line-soft);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.map-info-title {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  color: var(--ink-1);
+}
+
+/* 副显：门店功能 / 门店类型 / 经营模式 */
+.map-info-sub {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 0.5px solid var(--line);
+}
+
+.map-info-line {
+  display: flex;
+  gap: 5px;
+  font-size: 7.5px;
+  line-height: 1.5;
+}
+
+.map-info-line + .map-info-line {
+  margin-top: 2px;
+}
+
+.map-info-key {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.map-info-val {
+  color: var(--ink-1);
+}
+
+/* ============ 配置面板（卡片式分组） ============ */
+.config {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
+  background: var(--bg-soft);
+}
+
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.config-row label {
+  width: 110px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+
+.config-row select,
+.config-row input[type='text'] {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--r-s);
+  font-size: 13px;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink-1);
+  outline: none;
+  transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+
+.config-row select:hover,
+.config-row input[type='text']:hover {
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.config-row select:focus,
+.config-row input[type='text']:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.config-hint {
+  margin: 0 0 14px;
+  padding-left: 118px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+
+.config-save {
+  height: 36px;
+  padding: 0 22px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.2s var(--ease), transform 0.12s var(--ease);
+}
+
+.config-save:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.config-save:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.config-save:disabled {
+  background: #c7c7cc;
+  cursor: not-allowed;
+}
+
+.config-tip {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* 配置面板：必选 / 可选 左右分栏（卡片化） */
+.config-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.config-col {
+  min-width: 0;
+  background: var(--bg);
+  border: 0.5px solid var(--line-soft);
+  border-radius: var(--r-l);
+  padding: 18px 20px 6px;
+  box-shadow: var(--shadow-1);
+}
+
+.config-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-1);
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.config-group-title::after {
+  content: 'REQUIRED';
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.config-col:last-child .config-group-title::after {
+  content: 'OPTIONAL';
+  color: var(--ink-3);
+}
+
+/* 栏内：标签在上、控件在下，纵向排列 */
+.config-col .config-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.config-col .config-row label {
+  width: auto;
+}
+
+.config-col .config-row select,
+.config-col .config-row input[type='text'] {
+  width: 100%;
+}
+
+.config-col .config-hint {
+  padding-left: 0;
+  margin: -8px 0 14px;
+}
+
+.config-save {
+  margin-top: 20px;
+}
+
+/* 极窄面板下堆叠为单列，避免挤压 */
+@media (max-width: 360px) {
+  .config-cols {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* 诊断面板（?debug=1） */
+.diag {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  z-index: 9999;
+  width: 320px;
+  max-height: 60vh;
+  overflow: auto;
+  background: rgba(20, 22, 26, 0.9);
+  color: #e6e8eb;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 6px 8px 8px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.diag-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.diag-head button {
+  background: transparent;
+  border: 1px solid #4a4f57;
+  color: #cfd3d9;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.diag-body div {
+  word-break: break-all;
+}
+
+.diag-body .ok {
+  color: #34c724;
+}
+
+.diag-body .warn {
+  color: #ff8800;
+}
+
+.diag-errors {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #4a4f57;
+  color: #ff7d7d;
+}
+
+.diag-toggle {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  z-index: 9999;
+  background: rgba(20, 22, 26, 0.85);
+  color: #e6e8eb;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+/* ============ 导航栏（地图顶部筛选栏，毛玻璃） ============ */
+/* 热区容器：靠近显示、离开透明 */
+.map-filters-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  /* 透明内边距构成「靠近范围」，鼠标进入该区域即显示完整筛选栏 */
+  padding: 12px;
+}
+
+.map-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 0.5px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: var(--shadow-1);
+  line-height: 1;
+  /* 默认透明：鼠标离开导航栏时渐隐；靠近时由 .expanded 恢复 */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+
+/* 鼠标靠近（进入热区）时正常显示 */
+.map-filters-zone.expanded .map-filters {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* 可搜索筛选下拉（胶囊 chips） */
+.filter-select {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  max-width: 160px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-family: var(--font);
+  letter-spacing: 0.01em;
+  background: var(--bg-soft);
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease),
+    box-shadow 0.18s var(--ease);
+}
+
+.filter-select-trigger:hover {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+
+/* 已有选中项：淡蓝底 + 蓝字，明确反馈 */
+.filter-select-trigger.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.filter-select-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-select-caret {
+  font-size: 9px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: transform 0.2s var(--ease);
+}
+
+.filter-select.open .filter-select-caret {
+  transform: rotate(180deg);
+}
+
+.filter-select.open .filter-select-trigger {
+  background: var(--bg);
+  color: var(--ink-1);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* 下拉面板：浮层卡片 + 入场动效 */
+.filter-select-panel {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  z-index: 200;
+  width: 200px;
+  background: var(--bg);
+  border: 0.5px solid var(--line-soft);
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  animation: filter-panel-in 0.18s var(--ease);
+}
+
+@keyframes filter-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.filter-select-search {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 0.5px solid var(--line);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  background: var(--bg-soft);
+  color: var(--ink-1);
+}
+
+.filter-select-search::placeholder {
+  color: var(--ink-3);
+}
+
+.filter-select-list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.filter-select-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--r-s);
+  font-size: 13px;
+  color: var(--ink-1);
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.15s var(--ease);
+}
+
+.filter-select-option:hover {
+  background: var(--bg-soft);
+}
+
+.filter-select-option.selected {
+  color: var(--accent);
+  font-weight: 500;
+  background: var(--accent-soft);
+}
+
+.filter-select-check {
+  display: inline-block;
+  width: 12px;
+  color: var(--accent);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.filter-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-select-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: center;
+}
+

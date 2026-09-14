@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 1242" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">比亚迪徽章 Logo</title>
+  <desc id="desc">黑色徽章内嵌白色 BYD 字母标志</desc>
+
+  <!-- 与 xiaopeng-logo.svg 一致的黑色外部徽章 -->
+  <path
+    fill="#005BAC"
+    d="M621 87
+       C393 87 197 269 197 509
+       C197 703 286 820 391 946
+       L601 1183
+       C610 1195 616 1201 621 1201
+       C626 1201 632 1195 641 1183
+       L851 946
+       C956 820 1045 703 1045 509
+       C1045 269 849 87 621 87 Z" />
+
+  <!-- 中央白色 BYD 字母标志 -->
+  <text
+    x="621"
+    y="615"
+    text-anchor="middle"
+    fill="#fff"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="260"
+    font-weight="700"
+    letter-spacing="14">BYD</text>
+</svg>

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 1242" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">特斯拉徽章 Logo</title>
+  <desc id="desc">黑色徽章内嵌白色特斯拉 T 形标志</desc>
+
+  <!-- 与 xiaopeng-logo.svg 一致的黑色外部徽章 -->
+  <path
+    fill="#E82127"
+    d="M621 87
+       C393 87 197 269 197 509
+       C197 703 286 820 391 946
+       L601 1183
+       C610 1195 616 1201 621 1201
+       C626 1201 632 1195 641 1183
+       L851 946
+       C956 820 1045 703 1045 509
+       C1045 269 849 87 621 87 Z" />
+
+  <!-- 特斯拉标志，按 tsllogo.png 的比例缩放并置于徽章中心 -->
+  <g transform="translate(621 625)">
+    <g transform="scale(1.15)">
+      <g transform="translate(-512 -405)" fill="#fff">
+    <!-- 顶部弧形横带 -->
+    <path d="M244 204
+             C381 126 643 126 780 204
+             L765 234
+             C629 170 395 170 259 234 Z" />
+
+    <!-- T 形主体 -->
+    <path d="M267 247
+             C321 216 390 200 460 199
+             L512 269
+             L564 199
+             C634 200 703 216 757 247
+             C740 271 719 290 689 302
+             C687 276 667 257 639 257
+             H589
+             L512 662
+             L435 257
+             H385
+             C357 257 337 276 335 302
+             C305 290 284 271 267 247 Z" />
+      </g>
+    </g>
+  </g>
+</svg>

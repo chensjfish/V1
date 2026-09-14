@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 1242" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">小米汽车徽章 Logo</title>
+  <desc id="desc">黑色徽章内嵌白色小米 mi 标志</desc>
+
+  <!-- 与 xiaopeng-logo.svg 一致的黑色外部徽章 -->
+  <path
+    fill="#FF6900"
+    d="M621 87
+       C393 87 197 269 197 509
+       C197 703 286 820 391 946
+       L601 1183
+       C610 1195 616 1201 621 1201
+       C626 1201 632 1195 641 1183
+       L851 946
+       C956 820 1045 703 1045 509
+       C1045 269 849 87 621 87 Z" />
+
+  <!-- 小米 mi 标志，按 xmlogo.png 中的白色轮廓重绘并居中 -->
+  <g transform="translate(621 520)">
+    <g transform="scale(2.9)">
+      <g transform="translate(-137 -98)" fill="#fff">
+        <!-- m 的外轮廓与右侧竖笔 -->
+        <path d="M23 26
+                 H122
+                 C163 26 188 49 188 91
+                 V170
+                 H153
+                 V91
+                 C153 68 142 56 122 56
+                 H57
+                 V170
+                 H23 Z" />
+
+        <!-- m 的中间竖笔 -->
+        <path d="M88 85
+                 Q88 83 90 83
+                 H121
+                 Q123 83 123 85
+                 V170
+                 H88 Z" />
+
+        <!-- i 竖笔 -->
+        <path d="M217 26 H251 V170 H217 Z" />
+      </g>
+    </g>
+  </g>
+</svg>

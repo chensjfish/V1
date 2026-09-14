@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 1242" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">极氪徽章 Logo</title>
+  <desc id="desc">黑色徽章内嵌白色极氪几何标志</desc>
+
+  <!-- 与 xiaopeng-logo.svg 一致的黑色外部徽章 -->
+  <path
+    fill="#918297"
+    d="M621 87
+       C393 87 197 269 197 509
+       C197 703 286 820 391 946
+       L601 1183
+       C610 1195 616 1201 621 1201
+       C626 1201 632 1195 641 1183
+       L851 946
+       C956 820 1045 703 1045 509
+       C1045 269 849 87 621 87 Z" />
+
+  <!-- 极氪标志，按 jikelogo.png 的方框与折线轮廓重绘 -->
+  <g transform="translate(621 520)">
+    <g transform="scale(1.9)">
+      <g transform="translate(-136.5 -128.5)" fill="#fff">
+        <!-- 方形外框，内部镂空 -->
+        <path fill-rule="evenodd" d="M26 18 H247 V239 H26 Z
+                 M44 35 H229 V221 H44 Z" />
+
+        <!-- 中央折线结构 -->
+        <path d="M109 35 V102 L164 153 V221"
+              fill="none"
+              stroke="#fff"
+              stroke-width="20"
+              stroke-linecap="butt"
+              stroke-linejoin="miter" />
+      </g>
+    </g>
+  </g>
+</svg>

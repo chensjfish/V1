@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 1242" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">蔚来汽车徽章 Logo</title>
+  <desc id="desc">黑色徽章内嵌白色蔚来汽车标志</desc>
+
+  <!-- 与 xiaopeng-logo.svg 一致的黑色外部徽章 -->
+  <path
+    fill="#00BDBD"
+    d="M621 87
+       C393 87 197 269 197 509
+       C197 703 286 820 391 946
+       L601 1183
+       C610 1195 616 1201 621 1201
+       C626 1201 632 1195 641 1183
+       L851 946
+       C956 820 1045 703 1045 509
+       C1045 269 849 87 621 87 Z" />
+
+  <!-- 蔚来标志，按 weilailogo.png 的轮廓比例重绘并居中 -->
+  <g transform="translate(621 520)">
+    <g transform="scale(1.55)">
+      <g transform="translate(-194.5 -164)" fill="#fff">
+        <!-- 上方弧形拱门 -->
+        <path d="M26 176
+                 C26 84 105 8 194.5 8
+                 C284 8 363 84 363 176
+                 H274
+                 C274 136 239 102 194.5 102
+                 C150 102 108 136 108 176 Z" />
+
+        <!-- 下方双翼形结构 -->
+        <path d="M116 178
+                 H272
+                 L345 250
+                 L283 320
+                 L202 240
+                 C198 236 191 236 187 240
+                 L105 320
+                 L43 250 Z" />
+      </g>
+    </g>
+  </g>
+</svg>

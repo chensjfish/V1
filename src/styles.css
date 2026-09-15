@@ -599,7 +599,27 @@ body {
   fill: rgba(255, 255, 255, 0.82);
 }
 
-/* 门店 marker：城市筛选时用品牌原始 SVG logo；未筛选（全国/省）时用品牌色小圆点 */
+/* 区域名称标注（省/市/区名）：白底光晕保证在地图底上可读 */
+.geo-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: rgba(31, 45, 61, 0.92);
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 全国初始界面省份名：字号缩小，避免 34 个省名拥挤 */
+.geo-label-sm {
+  font-size: 9px;
+  font-weight: 500;
+}
+
+/* 门店 marker：城市筛选时用品牌原始 SVG logo；未筛选（全国/省）时用品牌色小圆点
+   反向缩放 scale(1/view.scale) 抵消地图缩放，使 logo 视觉大小恒定 */
 .geo-marker {
   position: absolute;
   width: 24px;
@@ -609,6 +629,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  transform-origin: center center;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
 }
 

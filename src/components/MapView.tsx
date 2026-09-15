@@ -258,6 +258,33 @@ export default function MapView({ config }: Props) {
     });
   }, [filtered, projector]);
 
+  // 区域名称标注：按当前底图层级标注要素名（全国→省、省→市、市→区），优先用 center，缺则取几何质心
+  const geoLabels = useMemo(() => {
+    if (!projector || !geo) return [];
+    const centroid = (geom: any): [number, number] | undefined => {
+      let sx = 0,
+        sy = 0,
+        n = 0;
+      const visit = (c: any) => {
+        if (typeof c[0] === 'number') {
+          sx += c[0];
+          sy += c[1];
+          n++;
+        } else if (Array.isArray(c)) c.forEach(visit);
+      };
+      visit(geom.coordinates);
+      return n ? [sx / n, sy / n] : undefined;
+    };
+    const out: { name: string; x: number; y: number }[] = [];
+    for (const f of geo.features) {
+      const c: [number, number] | undefined = f.properties.center || f.properties.centroid || centroid(f.geometry);
+      if (!c) continue;
+      const [x, y] = projector.project(c[0], c[1]);
+      out.push({ name: f.properties.name ?? '', x, y });
+    }
+    return out;
+  }, [geo, projector]);
+
   // 切换底图区域时重置视图；筛选变化时清空固定/悬停气泡
   useEffect(() => {
     setView({ scale: 1, x: 0, y: 0 });
@@ -498,12 +525,24 @@ export default function MapView({ config }: Props) {
                 const d = featureToPath(f.geometry, projector);
                 return <path key={idx} d={d} className="geo-region" fillRule="evenodd" />;
               })}
+              {geoLabels.map((l, i) => (
+                <text
+                  key={'lbl' + i}
+                  x={l.x}
+                  y={l.y}
+                  className={'geo-label' + (geoAdcode === String(NATIONAL_ADCODE) ? ' geo-label-sm' : '')}
+                  textAnchor="middle"
+                >
+                  {l.name}
+                </text>
+              ))}
             </svg>
-            {markerPositions.map((m) => (
+            {province &&
+              markerPositions.map((m) => (
               <div
                 key={m.id}
                 className="geo-marker"
-                style={{ left: m.x, top: m.y }}
+                style={{ left: m.x, top: m.y, transform: `scale(${1 / view.scale})` }}
                 onMouseEnter={() => handleMarkerEnter(m.id)}
                 onMouseLeave={() => handleMarkerLeave(m.id)}
                 onClick={() => handleMarkerClick(m.id)}
@@ -521,7 +560,7 @@ export default function MapView({ config }: Props) {
                   />
                 )}
               </div>
-            ))}
+              ))}
           </div>
         )}
         <div className="geo-overlay">

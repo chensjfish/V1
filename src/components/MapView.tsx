@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dashboard } from '@lark-base-open/js-sdk';
 import { loadPoints } from '../data';
-import { DEFAULT_MAP_KEY } from '../mapKey';
-import { loadTMap } from '../tmap';
-import { styleIdForBrand } from '../brandColors';
-import { makeMarkerIconForBrand } from '../brandLogos';
+import { makeMarkerIconForBrand, brandPrimaryColor } from '../brandLogos';
+import {
+  loadGeo,
+  resolveProvinceAdcode,
+  resolveCityAdcode,
+  computeBounds,
+  makeProjector,
+  featureToPath,
+  NATIONAL_ADCODE,
+  type GeoCollection,
+} from '../geo';
 import type { PluginConfig, StorePoint } from '../types';
 import FilterSelect from './FilterSelect';
 
@@ -56,16 +63,14 @@ function facetOptions(
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
 }
 
+interface View {
+  scale: number;
+  x: number;
+  y: number;
+}
+
 export default function MapView({ config }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  const hoverInfoRef = useRef<any>(null);
-  const pinnedWindowsRef = useRef<Map<string, any>>(new Map());
-  const hoverIdRef = useRef<string | null>(null);
-  const hoverTimerRef = useRef<any>(null);
-  const collapseTimerRef = useRef<any>(null);
-  const openDropdownsRef = useRef(0);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -80,6 +85,19 @@ export default function MapView({ config }: Props) {
   const [funcSelected, setFuncSelected] = useState<string[]>([]);
   const [typeSelected, setTypeSelected] = useState<string[]>([]);
   const [modelSelected, setModelSelected] = useState<string[]>([]);
+
+  // 本地 GeoJSON 底图状态
+  const [geo, setGeo] = useState<GeoCollection | null>(null);
+  const [geoAdcode, setGeoAdcode] = useState<string>('');
+  const [size, setSize] = useState({ w: 800, h: 600 });
+  const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 });
+  const viewRef = useRef<View>(view);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+
+  // 悬停 / 固定气泡
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const hoverTimerRef = useRef<any>(null);
 
   const hasProvince = points.some((p) => p.province);
   const hasCity = points.some((p) => p.city);
@@ -179,191 +197,194 @@ export default function MapView({ config }: Props) {
     };
   }, [config]);
 
-  // 2. 初始化地图
+  // 2. 按省/市筛选加载对应行政区划 GeoJSON（未筛选→全国；选省→省；选市→市），含回退链
   useEffect(() => {
-    // 未配置数据表时优先显示配置引导，不覆盖为 key 的报错
-    if (!config.tableId) return;
-    // 配置面板没填就回退到内置默认 key
-    const mapKey = (config.mapKey ?? '').trim() || DEFAULT_MAP_KEY;
+    if (!config.tableId) {
+      setGeo(null);
+      setGeoAdcode('');
+      return;
+    }
     let alive = true;
-    loadTMap(mapKey)
-      .then((TMap) => {
-        if (!alive || !containerRef.current || mapRef.current) return;
-        mapRef.current = new TMap.Map(containerRef.current, {
-          zoom: 5,
-          center: new TMap.LatLng(34.3, 108.9),
-          baseMap: { type: 'vector' },
-        });
-        setStatus('ready');
-      })
-      .catch((err) => {
-        if (!alive) return;
+    (async () => {
+      let adcode: number | null = null;
+      if (city) {
+        const prov = province ? await resolveProvinceAdcode(province) : null;
+        adcode = (await resolveCityAdcode(prov, city)) ?? prov;
+      } else if (province) {
+        adcode = await resolveProvinceAdcode(province);
+      }
+      const code = adcode ?? NATIONAL_ADCODE;
+      let g = await loadGeo(code);
+      if (!g && code !== NATIONAL_ADCODE) g = await loadGeo(NATIONAL_ADCODE);
+      if (!alive) return;
+      setGeo(g);
+      setGeoAdcode(g ? String(code) : String(NATIONAL_ADCODE));
+      if (!g) {
         setStatus('error');
-        setMessage(err?.message ?? String(err));
-      });
+        setMessage('地图数据加载失败，请检查 public/maps 目录是否包含对应行政区划 JSON');
+      } else {
+        setStatus('ready');
+      }
+      dashboard.setRendered().catch(() => {});
+    })();
     return () => {
       alive = false;
     };
-  }, [config.mapKey, config.tableId]);
+  }, [province, city, config.tableId]);
 
-  // 3. 打点 + 自适应视野
+  // 3. 容器尺寸测量（ResizeObserver）
   useEffect(() => {
-    if (status !== 'ready' || !mapRef.current) return;
-    const TMap = (window as any).TMap;
-    const map = mapRef.current;
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setSize({ w: el.clientWidth || 800, h: el.clientHeight || 600 });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-    if (markerRef.current) {
-      markerRef.current.setMap(null);
-      markerRef.current = null;
-    }
-    hoverInfoRef.current?.close();
-    pinnedWindowsRef.current.forEach((w) => w.close());
-    pinnedWindowsRef.current.clear();
-    hoverIdRef.current = null;
+  // 4. 投影 + 点位定位
+  const bounds = useMemo(() => (geo ? computeBounds(geo) : null), [geo]);
+  const projector = useMemo(
+    () => (bounds ? makeProjector(bounds, size.w, size.h, 24) : null),
+    [bounds, size],
+  );
+
+  const markerPositions = useMemo(() => {
+    if (!projector) return [];
+    return filtered.map((p, i) => {
+      const [x, y] = projector.project(p.lng, p.lat);
+      return { id: String(i), point: p, x, y };
+    });
+  }, [filtered, projector]);
+
+  // 切换底图区域时重置视图；筛选变化时清空固定/悬停气泡
+  useEffect(() => {
+    setView({ scale: 1, x: 0, y: 0 });
+  }, [geoAdcode]);
+  useEffect(() => {
+    setPinnedIds(new Set());
+    setHoverId(null);
+  }, [filtered]);
+
+  // 同步 view 到 ref（供原生滚轮/拖拽监听读取）
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  // 滚轮缩放（围绕光标）
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const v = viewRef.current;
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const ns = Math.min(20, Math.max(0.4, v.scale * factor));
+      const lx = (cx - v.x) / v.scale;
+      const ly = (cy - v.y) / v.scale;
+      setView({ scale: ns, x: cx - lx * ns, y: cy - ly * ns });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // 拖拽平移
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.geo-marker')) return;
+    dragRef.current = { x: e.clientX - viewRef.current.x, y: e.clientY - viewRef.current.y };
+  };
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      setView((v) => ({ ...v, x: e.clientX - dragRef.current!.x, y: e.clientY - dragRef.current!.y }));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  // 点位气泡 HTML（主显品牌+简称，副显功能/类型/模式）
+  const buildInfoContent = (point: StorePoint): string => {
+    const name = escapeHtml(point.name || '未命名门店');
+    const lines = (
+      [
+        ['功能', point.storeFunction],
+        ['类型', point.storeType],
+        ['模式', point.businessModel],
+      ] as [string, string | undefined][]
+    )
+      .filter(([, v]) => v)
+      .map(
+        ([k, v]) =>
+          `<div class="map-info-line"><span class="map-info-key">${escapeHtml(
+            k,
+          )}</span><span class="map-info-val">${escapeHtml(v as string)}</span></div>`,
+      )
+      .join('');
+    return `<div class="map-info"><div class="map-info-title">${name}</div>${
+      lines ? `<div class="map-info-sub">${lines}</div>` : ''
+    }</div>`;
+  };
+
+  const handleMarkerEnter = (id: string) => {
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
-    if (filtered.length === 0) {
-      dashboard.setRendered().catch(() => {});
-      return;
-    }
-
-    const geometries = filtered.map((p, i) => ({
-      id: String(i),
-      styleId: styleIdForBrand(p.brand),
-      position: new TMap.LatLng(p.lat, p.lng),
-    }));
-
-    const styles: Record<string, any> = {};
-    filtered.forEach((p) => {
-      const sid = styleIdForBrand(p.brand);
-      if (!styles[sid]) {
-        styles[sid] = new TMap.MarkerStyle({
-          width: 30,
-          height: 30,
-          anchor: { x: 15, y: 30 },
-          src: makeMarkerIconForBrand(p.brand),
-        });
-      }
+    setHoverId(id);
+  };
+  const handleMarkerLeave = (id: string) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoverId((prev) => (prev === id ? null : prev));
+    }, 80);
+  };
+  const handleMarkerClick = (id: string) => {
+    setPinnedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
     });
+    setHoverId(null);
+  };
 
-    markerRef.current = new TMap.MultiMarker({
-      map,
-      styles,
-      geometries,
-    });
-
-    // 构建点位气泡 HTML（主显品牌+简称，副显功能/类型/模式）
-    const buildInfoContent = (point: StorePoint): string => {
-      const name = escapeHtml(point.name || '未命名门店');
-      const lines = (
-        [
-          ['功能', point.storeFunction],
-          ['类型', point.storeType],
-          ['模式', point.businessModel],
-        ] as [string, string | undefined][]
-      )
-        .filter(([, v]) => v)
-        .map(
-          ([k, v]) =>
-            `<div class="map-info-line"><span class="map-info-key">${escapeHtml(
-              k,
-            )}</span><span class="map-info-val">${escapeHtml(v as string)}</span></div>`,
-        )
-        .join('');
-      return `<div class="map-info"><div class="map-info-title">${name}</div>${
-        lines ? `<div class="map-info-sub">${lines}</div>` : ''
-      }</div>`;
+  // 气泡列表（屏幕坐标 = 视图变换后的 marker 位置）
+  const tooltipList = useMemo(() => {
+    const list: { id: string; point: StorePoint; sx: number; sy: number; pinned: boolean }[] = [];
+    const add = (id: string, pinned: boolean) => {
+      const m = markerPositions.find((p) => p.id === id);
+      if (!m) return;
+      list.push({
+        id,
+        point: m.point,
+        sx: view.x + m.x * view.scale,
+        sy: view.y + m.y * view.scale,
+        pinned,
+      });
     };
+    pinnedIds.forEach((id) => add(id, true));
+    if (hoverId && !pinnedIds.has(hoverId)) add(hoverId, false);
+    return list;
+  }, [markerPositions, view, hoverId, pinnedIds]);
 
-    // 打开指定点位（id）的气泡，target 指定用「固定窗口」还是「悬停窗口」
-    const openInfoFor = (id: string, target: 'pinned' | 'hover') => {
-      const point = filtered[Number(id)];
-      if (!point) return;
-      const content = buildInfoContent(point);
-      const position = new TMap.LatLng(point.lat, point.lng);
-      // 悬停：单例窗口
-      if (target === 'hover') {
-        if (!hoverInfoRef.current) {
-          hoverInfoRef.current = new TMap.InfoWindow({
-            map,
-            position,
-            content,
-            offset: { x: 0, y: -34 },
-            enableCustom: true,
-          });
-        } else {
-          hoverInfoRef.current.setPosition(position);
-          hoverInfoRef.current.setContent(content);
-        }
-        hoverInfoRef.current.open();
-        return;
-      }
-      // 固定：每个点位独立窗口，可多个并存
-      let w = pinnedWindowsRef.current.get(id);
-      if (!w) {
-        w = new TMap.InfoWindow({
-          map,
-          position,
-          content,
-          offset: { x: 0, y: -34 },
-          enableCustom: true,
-        });
-        pinnedWindowsRef.current.set(id, w);
-      } else {
-        w.setPosition(position);
-        w.setContent(content);
-      }
-      w.open();
-    };
-
-    // 点击：固定/取消固定（再次点击同一点位单独取消）。每个固定点位独立窗口，可多个并存。
-    markerRef.current.on('click', (evt: any) => {
-      const id = evt?.geometry?.id;
-      const point = filtered[Number(id)];
-      if (!point) return;
-      if (pinnedWindowsRef.current.has(id)) {
-        pinnedWindowsRef.current.get(id)?.close();
-        pinnedWindowsRef.current.delete(id);
-        return;
-      }
-      hoverInfoRef.current?.close();
-      openInfoFor(id, 'pinned');
-    });
-
-    // 悬停：在独立「悬停窗口」显示该点位气泡（短延时避免相邻点位间移动闪烁）
-    markerRef.current.on('mouseover', (evt: any) => {
-      const id = evt?.geometry?.id;
-      if (!filtered[Number(id)]) return;
-      // 已固定的点位本身就显示在固定窗口，无需再开悬停窗口
-      if (pinnedWindowsRef.current.has(id)) return;
-      if (hoverTimerRef.current) {
-        clearTimeout(hoverTimerRef.current);
-        hoverTimerRef.current = null;
-      }
-      hoverIdRef.current = id;
-      openInfoFor(id, 'hover');
-    });
-
-    // 离开：短延时后关闭「悬停窗口」（固定窗口不受影响，A 仍保持显示）
-    markerRef.current.on('mouseout', (evt: any) => {
-      const id = evt?.geometry?.id;
-      hoverIdRef.current = null;
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = setTimeout(() => {
-        hoverInfoRef.current?.close();
-      }, 80);
-    });
-
-    const bounds = new TMap.LatLngBounds();
-    filtered.forEach((p) => bounds.extend(new TMap.LatLng(p.lat, p.lng)));
-    map.fitBounds(bounds, { padding: 60 });
-
-    dashboard.setRendered().catch(() => {});
-  }, [status, filtered]);
+  const canShowMap = !!geo && !!projector && status !== 'error';
+  const showLoading =
+    !!config.tableId && (!geo || (points.length === 0 && !message && status !== 'error'));
 
   // 筛选栏热区：鼠标进入即展开；离开后若无下拉在展开，短延时自动收起
+  const collapseTimerRef = useRef<any>(null);
+  const openDropdownsRef = useRef(0);
   const handleFiltersZoneEnter = () => {
     if (collapseTimerRef.current) {
       clearTimeout(collapseTimerRef.current);
@@ -458,13 +479,68 @@ export default function MapView({ config }: Props) {
           </div>
         </div>
       )}
-      <div ref={containerRef} className="map-canvas" />
-      {status === 'loading' && <div className="map-mask">地图加载中…</div>}
-      {status === 'error' && <div className="map-mask map-mask-error">{message}</div>}
-      {status === 'ready' && points.length === 0 && message && <div className="map-mask">{message}</div>}
-      {status === 'ready' && points.length > 0 && filtered.length === 0 && (
-        <div className="map-mask">当前筛选条件下没有门店</div>
-      )}
+      <div
+        className="map-canvas"
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        onDoubleClick={() => setView({ scale: 1, x: 0, y: 0 })}
+      >
+        {canShowMap && geo && projector && (
+          <div
+            className="geo-stage"
+            style={{
+              transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+              transformOrigin: '0 0',
+            }}
+          >
+            <svg className="geo-svg" width={size.w} height={size.h}>
+              {geo.features.map((f, idx) => {
+                const d = featureToPath(f.geometry, projector);
+                return <path key={idx} d={d} className="geo-region" fillRule="evenodd" />;
+              })}
+            </svg>
+            {markerPositions.map((m) => (
+              <div
+                key={m.id}
+                className="geo-marker"
+                style={{ left: m.x, top: m.y }}
+                onMouseEnter={() => handleMarkerEnter(m.id)}
+                onMouseLeave={() => handleMarkerLeave(m.id)}
+                onClick={() => handleMarkerClick(m.id)}
+              >
+                {city ? (
+                  <img
+                    className="geo-marker-img"
+                    src={makeMarkerIconForBrand(m.point.brand)}
+                    alt=""
+                  />
+                ) : (
+                  <span
+                    className="geo-dot"
+                    style={{ background: brandPrimaryColor(m.point.brand) }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="geo-overlay">
+          {tooltipList.map((t) => (
+            <div
+              key={t.id}
+              className={'geo-tooltip' + (t.pinned ? ' pinned' : '')}
+              style={{ left: t.sx, top: t.sy }}
+              dangerouslySetInnerHTML={{ __html: buildInfoContent(t.point) }}
+            />
+          ))}
+        </div>
+        {showLoading && <div className="map-mask">地图加载中…</div>}
+        {status === 'error' && <div className="map-mask map-mask-error">{message}</div>}
+        {status !== 'error' && points.length === 0 && message && <div className="map-mask">{message}</div>}
+        {status !== 'error' && points.length > 0 && filtered.length === 0 && (
+          <div className="map-mask">当前筛选条件下没有门店</div>
+        )}
+      </div>
     </div>
   );
 }

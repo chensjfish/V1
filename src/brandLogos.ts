@@ -14,8 +14,16 @@ import geelyGalaxy from './logos/geely-galaxy.svg?raw';
 import nio from './logos/nio.svg?raw';
 import zeekr from './logos/zeekr.svg?raw';
 
-import { makeMarkerIcon } from './tmap';
 import { getBrandColor } from './brandColors';
+
+/** 按指定颜色生成水滴标记图标（data URL），品牌徽章缺失时的回退 */
+export function makeMarkerIcon(color: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="32" viewBox="0 0 24 32">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 8.4 12 20 12 20s12-11.6 12-20C24 5.373 18.627 0 12 0z" fill="${color}"/>
+    <circle cx="12" cy="12" r="5" fill="#ffffff"/>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
 
 /** 中文品牌名 → 徽章 SVG 原始文本 */
 const LOGO_RAW: Record<string, string> = {
@@ -50,4 +58,26 @@ export function makeMarkerIconForBrand(brand?: string): string {
   const logo = brandLogoDataUrl(brand);
   if (logo) return logo;
   return makeMarkerIcon(getBrandColor(brand));
+}
+
+/**
+ * 取品牌 logo 的主色：直接从 SVG 原始文本里提取（忽略白色留白），
+ * 保证地图圆点/标记颜色与 logo 完全一致，且以后替换 SVG 也不会再漂。
+ * 未知品牌回退到 getBrandColor 调色板。
+ */
+export function brandPrimaryColor(brand?: string): string {
+  const raw = brand ? LOGO_RAW[brand] : undefined;
+  if (raw) {
+    const matches = raw.match(/#[0-9a-fA-F]{3,8}/g);
+    if (matches) {
+      const colors = new Set<string>();
+      for (const c of matches) {
+        const lower = c.toLowerCase();
+        if (lower === '#fff' || lower === '#ffffff') continue;
+        colors.add(lower);
+      }
+      if (colors.size > 0) return Array.from(colors)[0];
+    }
+  }
+  return getBrandColor(brand);
 }

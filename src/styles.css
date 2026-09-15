@@ -560,3 +560,100 @@ body {
   text-align: center;
 }
 
+/* ============ 本地 GeoJSON 地图（V1） ============ */
+.map-canvas {
+  position: relative;
+  z-index: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef3f8 0%, #e7eef5 100%);
+  cursor: grab;
+}
+
+.map-canvas:active {
+  cursor: grabbing;
+}
+
+.geo-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.geo-svg {
+  display: block;
+}
+
+/* 行政区划面：浅填充 + 细描边，叠加显示省/市/区轮廓 */
+.geo-region {
+  fill: rgba(255, 255, 255, 0.62);
+  stroke: rgba(31, 45, 61, 0.32);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.15s var(--ease);
+}
+
+.geo-region:hover {
+  fill: rgba(255, 255, 255, 0.82);
+}
+
+/* 门店 marker：城市筛选时用品牌原始 SVG logo；未筛选（全国/省）时用品牌色小圆点 */
+.geo-marker {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.geo-marker-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/* 未筛选城市时的小圆点：颜色与品牌 SVG 一致 */
+.geo-dot {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+/* 气泡层（屏幕坐标，不随地图缩放，保持文字清晰） */
+.geo-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.geo-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  pointer-events: none;
+}
+
+.geo-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg);
+}
+
+.geo-tooltip.pinned .map-info {
+  border-color: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 22px rgba(0, 0, 0, 0.16);
+}
+

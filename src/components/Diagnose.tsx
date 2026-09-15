@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DashboardState, dashboard } from '@lark-base-open/js-sdk';
 import { loadPoints } from '../data';
-import { DEFAULT_MAP_KEY } from '../mapKey';
 import type { PluginConfig } from '../types';
 
 interface Props {
@@ -14,7 +13,6 @@ interface DiagInfo {
   inIframe: boolean;
   ua: string;
   webgl: string;
-  tmapLoaded: boolean;
   sdkState: string;
   dataResult: string;
   errors: string[];
@@ -26,16 +24,16 @@ function detectWebGL(): string {
     const gl =
       (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
       (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
-    if (!gl) return '不支持（地图会白屏，需换非 WebGL 底图）';
+    if (!gl) return '不支持（V1 使用 SVG 底图，无影响）';
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown';
     return `支持 · ${String(renderer).slice(0, 40)}`;
   } catch (e: any) {
-    return `检测异常：${e?.message ?? e}`;
+    return `检测异常：${e?.message ?? e}（V1 使用 SVG 底图，无影响）`;
   }
 }
 
-/** ?debug=1 时的诊断面板：把白屏原因直接摆在页面上，省去远程调试 */
+/** ?debug=1 时的诊断面板：把取数 / 配置问题直接摆在页面上，省去远程调试 */
 export default function Diagnose({ config, state }: Props) {
   const [info, setInfo] = useState<DiagInfo | null>(null);
   const [open, setOpen] = useState(true);
@@ -57,7 +55,6 @@ export default function Diagnose({ config, state }: Props) {
           inIframe: window.self !== window.top,
           ua: navigator.userAgent.slice(0, 80),
           webgl: detectWebGL(),
-          tmapLoaded: !!(window as any).TMap,
           sdkState: String(state),
           dataResult: `共 ${res.total} 条，有效 ${res.points.length} 个，跳过 ${res.skipped} 条`,
           errors,
@@ -71,7 +68,6 @@ export default function Diagnose({ config, state }: Props) {
           inIframe: window.self !== window.top,
           ua: navigator.userAgent.slice(0, 80),
           webgl: detectWebGL(),
-          tmapLoaded: !!(window as any).TMap,
           sdkState: String(state),
           dataResult: '取数失败（见错误）',
           errors,
@@ -80,7 +76,7 @@ export default function Diagnose({ config, state }: Props) {
 
     const timer = window.setTimeout(() => {
       if (!alive) return;
-      setInfo((prev) => (prev ? { ...prev, tmapLoaded: !!(window as any).TMap, errors } : prev));
+      setInfo((prev) => (prev ? { ...prev, errors } : prev));
     }, 4000);
 
     return () => {
@@ -97,14 +93,10 @@ export default function Diagnose({ config, state }: Props) {
     inIframe: window.self !== window.top,
     ua: navigator.userAgent.slice(0, 80),
     webgl: detectWebGL(),
-    tmapLoaded: !!(window as any).TMap,
     sdkState: String(state),
     dataResult: '读取中…',
     errors: [],
   };
-
-  const keyInUse = (config.mapKey ?? '').trim() || DEFAULT_MAP_KEY;
-  const maskedKey = `${keyInUse.slice(0, 6)}…${keyInUse.slice(-4)}`;
 
   if (!open) {
     return (
@@ -129,7 +121,7 @@ export default function Diagnose({ config, state }: Props) {
           </span>
         </div>
         <div>WebGL：{view.webgl}</div>
-        <div>地图 SDK：{view.tmapLoaded ? '✓ 已加载 TMap' : '✗ 未加载（脚本被拦或 key 无效）'}</div>
+        <div>底图：本地行政区划 GeoJSON（无需联网 / WebGL）</div>
         <div>仪表盘状态：{view.sdkState}（0=Create 1=Config 2=View 3=FullScreen）</div>
         <div>取数：{view.dataResult}</div>
         <div>表：{config.tableName ?? config.tableId ?? '未配置'}</div>
@@ -137,7 +129,6 @@ export default function Diagnose({ config, state }: Props) {
           字段：lng={config.lngFieldId ?? '-'} lat={config.latFieldId ?? '-'} name=
           {config.nameFieldId ?? '-'}
         </div>
-        <div>key：{maskedKey}（已内置默认 key 时也会显示）</div>
         <div>UA：{view.ua}</div>
         {view.errors.length > 0 && (
           <div className="diag-errors">

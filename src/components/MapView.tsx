@@ -261,26 +261,65 @@ export default function MapView({ config }: Props) {
   // 区域名称标注：按当前底图层级标注要素名（全国→省、省→市、市→区），优先用 center，缺则取几何质心
   const geoLabels = useMemo(() => {
     if (!projector || !geo) return [];
-    const centroid = (geom: any): [number, number] | undefined => {
-      let sx = 0,
-        sy = 0,
-        n = 0;
-      const visit = (c: any) => {
-        if (typeof c[0] === 'number') {
-          sx += c[0];
-          sy += c[1];
-          n++;
-        } else if (Array.isArray(c)) c.forEach(visit);
-      };
-      visit(geom.coordinates);
-      return n ? [sx / n, sy / n] : undefined;
+    // 面积加权多边形质心（兜底用，比顶点算术平均准确）
+    const ringCentroid = (ring: number[][]): [number, number] | null => {
+      let a = 0,
+        cx = 0,
+        cy = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [x0, y0] = ring[i];
+        const [x1, y1] = ring[i + 1];
+        const cr = x0 * y1 - x1 * y0;
+        a += cr;
+        cx += (x0 + x1) * cr;
+        cy += (y0 + y1) * cr;
+      }
+      if (Math.abs(a) < 1e-12) return null;
+      a *= 0.5;
+      return [cx / (6 * a), cy / (6 * a)];
+    };
+    const geomCentroid = (geom: any): [number, number] | undefined => {
+      if (geom.type === 'Polygon') {
+        return ringCentroid(geom.coordinates[0]) || undefined;
+      }
+      if (geom.type === 'MultiPolygon') {
+        let a = 0,
+          cx = 0,
+          cy = 0,
+          ok = false;
+        for (const poly of geom.coordinates) {
+          const c = ringCentroid(poly[0]);
+          if (!c) continue;
+          let pa = 0;
+          const ring = poly[0];
+          for (let i = 0; i < ring.length - 1; i++) {
+            pa += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+          }
+          pa = Math.abs(pa * 0.5);
+          a += pa;
+          cx += c[0] * pa;
+          cy += c[1] * pa;
+          ok = true;
+        }
+        return ok && a > 0 ? [cx / a, cy / a] : undefined;
+      }
+      return undefined;
     };
     const out: { name: string; x: number; y: number }[] = [];
     for (const f of geo.features) {
-      const c: [number, number] | undefined = f.properties.center || f.properties.centroid || centroid(f.geometry);
+      // 优先几何质心 centroid（DataV 已算好，最贴合视觉中心）；
+      // 其次行政中心 center；最后面积加权质心兜底（仅少数缺 centroid 字段的要素）。
+      const pc = f.properties?.centroid as number[] | undefined;
+      const ct = f.properties?.center as number[] | undefined;
+      const c: number[] | undefined =
+        pc && pc.length === 2
+          ? pc
+          : ct && ct.length === 2
+            ? ct
+            : geomCentroid(f.geometry);
       if (!c) continue;
       const [x, y] = projector.project(c[0], c[1]);
-      out.push({ name: f.properties.name ?? '', x, y });
+      out.push({ name: f.properties?.name ?? '', x, y });
     }
     return out;
   }, [geo, projector]);

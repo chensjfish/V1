@@ -601,7 +601,7 @@ body {
 
 /* 区域名称标注（省/市/区名）：白底光晕保证在地图底上可读 */
 .geo-label {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   fill: rgba(31, 45, 61, 0.92);
   paint-order: stroke;

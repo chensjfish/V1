@@ -365,8 +365,14 @@ export default function MapView({ config }: Props) {
   };
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!dragRef.current) return;
-      setView((v) => ({ ...v, x: e.clientX - dragRef.current!.x, y: e.clientY - dragRef.current!.y }));
+      // 注意：必须在事件回调里先把偏移量取出来。
+      // setView 的 updater 是延迟执行的（React 18 自动批处理），
+      // 若 mouseup 先于渲染把 dragRef.current 置空，updater 里再读 dragRef.current.x
+      // 会抛 TypeError，导致整个组件树卸载（白屏）。
+      const drag = dragRef.current;
+      if (!drag) return;
+      const { x: dx, y: dy } = drag;
+      setView((v) => ({ ...v, x: e.clientX - dx, y: e.clientY - dy }));
     };
     const onUp = () => {
       dragRef.current = null;
@@ -550,6 +556,11 @@ export default function MapView({ config }: Props) {
         ref={containerRef}
         onMouseDown={handleMouseDown}
         onDoubleClick={() => setView({ scale: 1, x: 0, y: 0 })}
+        // 兜底：即便某个元素触发了原生拖拽，也绝不允许在画布内投放，
+        // 否则浏览器会把投放内容（如 data: 图片）当导航目标，整页跳 about:blank 白屏
+        onDragStart={(e) => e.preventDefault()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => e.preventDefault()}
       >
         {canShowMap && geo && projector && (
           <div
@@ -591,6 +602,7 @@ export default function MapView({ config }: Props) {
                     className="geo-marker-img"
                     src={makeMarkerIconForBrand(m.point.brand)}
                     alt=""
+                    draggable={false}
                   />
                 ) : (
                   <span

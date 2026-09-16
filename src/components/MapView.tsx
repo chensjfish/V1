@@ -22,9 +22,11 @@ interface Props {
 type FacetDim = 'brand' | 'func' | 'type' | 'model';
 
 /**
- * 联动（faceted）筛选项：返回 dim 维度在当前「除 dim 自身外」所有筛选条件下的可选值。
- * 即某个品牌的候选项，只保留在已选省份/城市/功能/类型/模式下真实存在的品牌，
- * 实现四个维度互相联动。
+ * 联动（faceted）筛选项：返回 dim 维度在当前筛选条件下的可选值。
+ * 联动模型（品牌为枢纽）：
+ *  - 品牌选项：仅受省份/城市约束（不受功能/类型/模式约束）。
+ *  - 门店功能/类型/经营模式选项：受省份/城市 + 品牌约束，但三者之间互不约束。
+ * 即「功能/类型/模式」各自随所选品牌收窄，而品牌不受其余三者反向约束。
  */
 function facetOptions(
   points: StorePoint[],
@@ -42,13 +44,8 @@ function facetOptions(
   for (const p of points) {
     if (sel.province && p.province !== sel.province) continue;
     if (sel.city && p.city !== sel.city) continue;
+    // 品牌是联动枢纽：功能/类型/模式 的选项随所选品牌收窄；品牌自身选项不受三者约束
     if (dim !== 'brand' && sel.brandsSelected.length && !sel.brandsSelected.includes(p.brand ?? ''))
-      continue;
-    if (dim !== 'func' && sel.funcSelected.length && !sel.funcSelected.includes(p.storeFunction ?? ''))
-      continue;
-    if (dim !== 'type' && sel.typeSelected.length && !sel.typeSelected.includes(p.storeType ?? ''))
-      continue;
-    if (dim !== 'model' && sel.modelSelected.length && !sel.modelSelected.includes(p.businessModel ?? ''))
       continue;
     const v =
       dim === 'brand'

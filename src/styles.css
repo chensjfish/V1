@@ -617,7 +617,7 @@ body {
 
 /* 全国初始界面省份名：字号缩小，避免 34 个省名拥挤 */
 .geo-label-sm {
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 500;
 }
 

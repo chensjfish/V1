@@ -602,15 +602,11 @@ body {
   fill: rgba(255, 255, 255, 0.82);
 }
 
-/* 区域名称标注（省/市/区名）：白底光晕保证在地图底上可读 */
+/* 区域名称标注（省/市/区名）：纯文字填充，无描边光晕 */
 .geo-label {
   font-size: 9px;
   font-weight: 600;
   fill: rgba(31, 45, 61, 0.92);
-  paint-order: stroke;
-  stroke: #ffffff;
-  stroke-width: 3px;
-  stroke-linejoin: round;
   pointer-events: none;
   user-select: none;
 }

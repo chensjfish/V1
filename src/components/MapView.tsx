@@ -559,7 +559,12 @@ export default function MapView({ config }: Props) {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => e.preventDefault()}
       >
-        {canShowMap && geo && projector && (
+        {canShowMap && geo && projector && (() => {
+          // 行政区名称字号：随缩放反向抵消，使有效字号 = 基准×scale 永远 ≤ 12px（放大封顶），且 ≥ 基准（缩小不受影响，因 clampView 保证 scale≥1）
+          const isNational = geoAdcode === String(NATIONAL_ADCODE);
+          const labelBase = isNational ? 7 : 9;
+          const labelFontPx = Math.min(labelBase, 12 / view.scale);
+          return (
           <div
             className="geo-stage"
             style={{
@@ -579,6 +584,7 @@ export default function MapView({ config }: Props) {
                   y={l.y}
                   className={'geo-label' + (geoAdcode === String(NATIONAL_ADCODE) ? ' geo-label-sm' : '')}
                   textAnchor="middle"
+                  style={{ fontSize: labelFontPx + 'px' }}
                 >
                   {l.name}
                 </text>
@@ -610,7 +616,8 @@ export default function MapView({ config }: Props) {
               </div>
               ))}
           </div>
-        )}
+          );
+        })()}
         <div className="geo-overlay">
           {tooltipList.map((t) => (
             <div

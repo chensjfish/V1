@@ -617,6 +617,14 @@ body {
   font-weight: 500;
 }
 
+/* 区县名下方保有量副标签：蓝色区分数据，无描边 */
+.geo-label-own {
+  font-weight: 600;
+  fill: #2f6fed;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* 门店 marker：城市筛选时用品牌原始 SVG logo；未筛选（全国/省）时用品牌色小圆点
    反向缩放 scale(1/view.scale) 抵消地图缩放，使 logo 视觉大小恒定 */
 .geo-marker {

@@ -28,6 +28,16 @@ export interface PluginConfig {
   typeFieldId?: string;
   /** 经营模式字段（可选，多选筛选） */
   modelFieldId?: string;
+  /** 保有量子表 id（可选，配置后城市视图下各区县名下方显示保有量） */
+  ownershipTableId?: string;
+  /** 保有量子表内：省份字段 */
+  ownershipProvinceFieldId?: string;
+  /** 保有量子表内：城市字段 */
+  ownershipCityFieldId?: string;
+  /** 保有量子表内：区县名称字段 */
+  ownershipDistrictFieldId?: string;
+  /** 保有量子表内：保有量数值字段 */
+  ownershipValueFieldId?: string;
 }
 
 export interface StorePoint {

@@ -20,6 +20,7 @@ interface FieldOption {
 export default function ConfigPanel({ config }: Props) {
   const [tables, setTables] = useState<TableOption[]>([]);
   const [fields, setFields] = useState<FieldOption[]>([]);
+  const [ownFields, setOwnFields] = useState<FieldOption[]>([]);
   const [form, setForm] = useState<PluginConfig>({
     ...(config ?? {}),
   });
@@ -61,6 +62,23 @@ export default function ConfigPanel({ config }: Props) {
       .catch((e) => setTip(`读取字段失败：${e?.message ?? e}`));
   }, [form.tableId]);
 
+  // 保有量子表字段（与主表独立加载）
+  useEffect(() => {
+    if (isMock() || !form.ownershipTableId) {
+      setOwnFields([]);
+      return;
+    }
+    bitable.base
+      .getTableById(form.ownershipTableId)
+      .then(async (t) => {
+        const metas = await t.getFieldMetaList();
+        setOwnFields(
+          metas.map((m: any) => ({ id: m.id, name: m.name ?? m.id, type: m.type })),
+        );
+      })
+      .catch((e) => setTip(`读取保有量子表字段失败：${e?.message ?? e}`));
+  }, [form.ownershipTableId]);
+
   const update = (patch: Partial<PluginConfig>) => setForm((prev) => ({ ...prev, ...patch }));
 
   const handleSave = async () => {
@@ -73,6 +91,16 @@ export default function ConfigPanel({ config }: Props) {
       }
       if (form.coordSource === 'lnglat' && (!form.lngFieldId || !form.latFieldId)) {
         setTip('请选择经度字段和纬度字段');
+        return;
+      }
+      if (
+        form.ownershipTableId &&
+        (!form.ownershipProvinceFieldId ||
+          !form.ownershipCityFieldId ||
+          !form.ownershipDistrictFieldId ||
+          !form.ownershipValueFieldId)
+      ) {
+        setTip('保有量子表已选，请同时配置省份/城市/区县/保有量四个字段');
         return;
       }
       if (isMock()) {
@@ -284,6 +312,86 @@ export default function ConfigPanel({ config }: Props) {
           ))}
         </select>
       </div>
+
+        </section>
+
+        <section className="config-col">
+          <div className="config-group-title">可选-保有量</div>
+
+          <div className="config-row">
+            <label>保有量子表</label>
+            <select
+              value={form.ownershipTableId ?? ''}
+              onChange={(e) => update({ ownershipTableId: e.target.value || undefined })}
+            >
+              <option value="">（可选）不显示保有量</option>
+              {tables.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="config-row">
+            <label>省份字段</label>
+            <select
+              value={form.ownershipProvinceFieldId ?? ''}
+              onChange={(e) => update({ ownershipProvinceFieldId: e.target.value || undefined })}
+            >
+              <option value="">（可选）请选择省份字段</option>
+              {ownFields.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="config-row">
+            <label>城市字段</label>
+            <select
+              value={form.ownershipCityFieldId ?? ''}
+              onChange={(e) => update({ ownershipCityFieldId: e.target.value || undefined })}
+            >
+              <option value="">（可选）请选择城市字段</option>
+              {ownFields.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="config-row">
+            <label>区县名称字段</label>
+            <select
+              value={form.ownershipDistrictFieldId ?? ''}
+              onChange={(e) => update({ ownershipDistrictFieldId: e.target.value || undefined })}
+            >
+              <option value="">（可选）请选择区县字段</option>
+              {ownFields.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="config-row">
+            <label>保有量数值字段</label>
+            <select
+              value={form.ownershipValueFieldId ?? ''}
+              onChange={(e) => update({ ownershipValueFieldId: e.target.value || undefined })}
+            >
+              <option value="">（可选）请选择数值字段</option>
+              {ownFields.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
         </section>
       </div>

@@ -1,6 +1,7 @@
 import { bitable } from '@lark-base-open/js-sdk';
 import type { LoadResult, PluginConfig, StorePoint } from './types';
 import { isMock, MOCK_POINTS } from './mock';
+import { normName } from './geo';
 
 /** 单元格值 -> 数字（兼容数字字段、文本字段、公式字段） */
 function toNumber(v: unknown): number | null {
@@ -110,4 +111,45 @@ export async function loadPoints(cfg: PluginConfig): Promise<LoadResult> {
   } while (pageToken != null && guard < 50);
 
   return { points, total, skipped };
+}
+
+/**
+ * 从「保有量子表」读取省/市/区县 → 保有量，建成查找表。
+ * key = `normalize(省)|normalize(市)|normalize(区县)`，与地图标签名、当前选中省/市归一化后对齐。
+ * 缺区县名或数值的记录直接跳过；配置不完整时返回空表（地图不显示保有量）。
+ */
+export async function loadOwnership(cfg: PluginConfig): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (isMock()) return map;
+  if (
+    !cfg.ownershipTableId ||
+    !cfg.ownershipProvinceFieldId ||
+    !cfg.ownershipCityFieldId ||
+    !cfg.ownershipDistrictFieldId ||
+    !cfg.ownershipValueFieldId
+  ) {
+    return map;
+  }
+
+  const table = await bitable.base.getTableById(cfg.ownershipTableId);
+  let pageToken: number | undefined;
+  let guard = 0;
+
+  do {
+    const res = await table.getRecordsByPage({ pageSize: PAGE_SIZE, pageToken });
+    for (const record of res.records) {
+      const fields = record.fields as Record<string, unknown>;
+      const prov = toText(fields[cfg.ownershipProvinceFieldId]);
+      const city = toText(fields[cfg.ownershipCityFieldId]);
+      const dist = toText(fields[cfg.ownershipDistrictFieldId]);
+      const val = toNumber(fields[cfg.ownershipValueFieldId]);
+      if (!dist || val == null) continue; // 区县名或数值缺失：跳过，地图不显示
+      const key = `${normName(prov)}|${normName(city)}|${normName(dist)}`;
+      map.set(key, val);
+    }
+    pageToken = res.hasMore && typeof res.pageToken === 'number' ? res.pageToken : undefined;
+    guard += 1;
+  } while (pageToken != null && guard < 50);
+
+  return map;
 }

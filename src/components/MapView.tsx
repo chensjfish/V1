@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dashboard } from '@lark-base-open/js-sdk';
-import { loadPoints } from '../data';
+import { loadPoints, loadOwnership } from '../data';
 import { makeMarkerIconForBrand, brandPrimaryColor } from '../brandLogos';
 import {
   loadGeo,
@@ -9,6 +9,7 @@ import {
   computeBounds,
   makeProjector,
   featureToPath,
+  normName,
   NATIONAL_ADCODE,
   type GeoCollection,
 } from '../geo';
@@ -74,6 +75,8 @@ export default function MapView({ config }: Props) {
   const [message, setMessage] = useState('');
   const [points, setPoints] = useState<StorePoint[]>([]);
   const [, setStat] = useState({ total: 0, skipped: 0 });
+  // 保有量查找表：key = `省|市|区县`（均归一化），value = 数值
+  const [ownership, setOwnership] = useState<Map<string, number>>(new Map());
 
   // 省份 / 城市 / 品牌 / 门店功能 / 门店类型 / 经营模式 筛选（品牌及后三个为多选）
   const [province, setProvince] = useState('');
@@ -188,6 +191,25 @@ export default function MapView({ config }: Props) {
         if (!alive) return;
         setStatus('error');
         setMessage(err?.message ?? String(err));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [config]);
+
+  // 1b. 取数-保有量（配置子表后加载，建成省|市|区县查找表）
+  useEffect(() => {
+    let alive = true;
+    if (!config.ownershipTableId) {
+      setOwnership(new Map());
+      return;
+    }
+    loadOwnership(config)
+      .then((m) => {
+        if (alive) setOwnership(m);
+      })
+      .catch(() => {
+        if (alive) setOwnership(new Map());
       });
     return () => {
       alive = false;
@@ -577,18 +599,38 @@ export default function MapView({ config }: Props) {
                 const d = featureToPath(f.geometry, projector);
                 return <path key={idx} d={d} className="geo-region" fillRule="evenodd" />;
               })}
-              {geoLabels.map((l, i) => (
-                <text
-                  key={'lbl' + i}
-                  x={l.x}
-                  y={l.y}
-                  className={'geo-label' + (geoAdcode === String(NATIONAL_ADCODE) ? ' geo-label-sm' : '')}
-                  textAnchor="middle"
-                  style={{ fontSize: labelFontPx + 'px' }}
-                >
-                  {l.name}
-                </text>
-              ))}
+              {geoLabels.map((l, i) => {
+                // 城市视图下，按 省|市|区县 归一化匹配保有量；匹不到/缺失则不显示
+                const ownVal =
+                  city && ownership.size > 0
+                    ? ownership.get(`${normName(province)}|${normName(city)}|${normName(l.name)}`)
+                    : undefined;
+                const subFont = Math.max(7, labelFontPx - 1);
+                return (
+                  <g key={'lbl' + i}>
+                    <text
+                      x={l.x}
+                      y={l.y}
+                      className={'geo-label' + (geoAdcode === String(NATIONAL_ADCODE) ? ' geo-label-sm' : '')}
+                      textAnchor="middle"
+                      style={{ fontSize: labelFontPx + 'px' }}
+                    >
+                      {l.name}
+                    </text>
+                    {ownVal != null && (
+                      <text
+                        x={l.x}
+                        y={l.y + labelFontPx * 1.3}
+                        className="geo-label-own"
+                        textAnchor="middle"
+                        style={{ fontSize: subFont + 'px' }}
+                      >
+                        {ownVal}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
             </svg>
             {province &&
               markerPositions.map((m) => (

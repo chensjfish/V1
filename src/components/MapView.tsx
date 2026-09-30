@@ -605,7 +605,7 @@ export default function MapView({ config }: Props) {
                   city && ownership.size > 0
                     ? ownership.get(`${normName(province)}|${normName(city)}|${normName(l.name)}`)
                     : undefined;
-                const subFont = Math.max(7, labelFontPx - 1);
+                const subFont = Math.min(Math.max(7, labelFontPx - 1), 11 / view.scale);
                 return (
                   <g key={'lbl' + i}>
                     <text

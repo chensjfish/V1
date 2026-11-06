@@ -271,11 +271,14 @@ export default function MapView({ config }: Props) {
 
   const markerPositions = useMemo(() => {
     if (!projector) return [];
+    // 品牌默认不选择：初始状态（未选任何品牌）不显示门店点位，需筛选品牌后再显示。
+    // 若数据源本身没有品牌字段，则不做此限制，避免功能不可用。
+    if (hasBrand && brandsSelected.length === 0) return [];
     return filtered.map((p, i) => {
       const [x, y] = projector.project(p.lng, p.lat);
       return { id: String(i), point: p, x, y };
     });
-  }, [filtered, projector]);
+  }, [filtered, projector, hasBrand, brandsSelected]);
 
   // 区域名称标注：按当前底图层级标注要素名（全国→省、省→市、市→区），优先用 center，缺则取几何质心
   const geoLabels = useMemo(() => {
@@ -525,8 +528,8 @@ export default function MapView({ config }: Props) {
             )}
             {hasBrand && (
               <FilterSelect
-                placeholder="全部品牌"
-                allLabel="全部品牌"
+                placeholder="选择品牌"
+                allLabel="清除选择"
                 multiple
                 options={brands}
                 value={brandsSelected}
@@ -632,8 +635,7 @@ export default function MapView({ config }: Props) {
                 );
               })}
             </svg>
-            {province &&
-              markerPositions.map((m) => (
+            {markerPositions.map((m) => (
               <div
                 key={m.id}
                 className="geo-marker"

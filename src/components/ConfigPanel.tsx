@@ -26,6 +26,12 @@ export default function ConfigPanel({ config }: Props) {
   });
   const [saving, setSaving] = useState(false);
   const [tip, setTip] = useState('');
+  const [tipKind, setTipKind] = useState<'info' | 'error' | 'success'>('info');
+
+  const showTip = (msg: string, kind: 'info' | 'error' | 'success' = 'info') => {
+    setTip(msg);
+    setTipKind(kind);
+  };
 
   useEffect(() => {
     if (isMock()) {
@@ -46,7 +52,7 @@ export default function ConfigPanel({ config }: Props) {
         );
         setTables(opts);
       })
-      .catch((e) => setTip(`读取数据表失败：${e?.message ?? e}`));
+      .catch((e) => showTip(`读取数据表失败：${e?.message ?? e}`, 'error'));
   }, []);
 
   useEffect(() => {
@@ -59,7 +65,7 @@ export default function ConfigPanel({ config }: Props) {
           metas.map((m: any) => ({ id: m.id, name: m.name ?? m.id, type: m.type })),
         );
       })
-      .catch((e) => setTip(`读取字段失败：${e?.message ?? e}`));
+      .catch((e) => showTip(`读取字段失败：${e?.message ?? e}`, 'error'));
   }, [form.tableId]);
 
   // 保有量子表字段（与主表独立加载）
@@ -76,7 +82,7 @@ export default function ConfigPanel({ config }: Props) {
           metas.map((m: any) => ({ id: m.id, name: m.name ?? m.id, type: m.type })),
         );
       })
-      .catch((e) => setTip(`读取保有量子表字段失败：${e?.message ?? e}`));
+      .catch((e) => showTip(`读取保有量子表字段失败：${e?.message ?? e}`, 'error'));
   }, [form.ownershipTableId]);
 
   const update = (patch: Partial<PluginConfig>) => setForm((prev) => ({ ...prev, ...patch }));
@@ -86,11 +92,11 @@ export default function ConfigPanel({ config }: Props) {
     setTip('');
     try {
       if (form.coordSource === 'location' && !form.locationFieldId) {
-        setTip('请选择地理位置字段');
+        showTip('请选择地理位置字段', 'error');
         return;
       }
       if (form.coordSource === 'lnglat' && (!form.lngFieldId || !form.latFieldId)) {
-        setTip('请选择经度字段和纬度字段');
+        showTip('请选择经度字段和纬度字段', 'error');
         return;
       }
       if (
@@ -100,11 +106,11 @@ export default function ConfigPanel({ config }: Props) {
           !form.ownershipDistrictFieldId ||
           !form.ownershipValueFieldId)
       ) {
-        setTip('保有量子表已选，请同时配置省份/城市/区县/保有量四个字段');
+        showTip('保有量子表已选，请同时配置省份/城市/区县/保有量四个字段', 'error');
         return;
       }
       if (isMock()) {
-        setTip('本地 mock 模式下无法保存，请在飞书仪表盘中配置');
+        showTip('本地 mock 模式下无法保存，请在飞书仪表盘中配置');
         return;
       }
       const current = await dashboard.getConfig().catch(() => null);
@@ -112,9 +118,9 @@ export default function ConfigPanel({ config }: Props) {
         dataConditions: current?.dataConditions ?? [],
         customConfig: { ...form },
       });
-      setTip('配置已保存');
+      showTip('配置已保存', 'success');
     } catch (e: any) {
-      setTip(`保存失败：${e?.message ?? e}`);
+      showTip(`保存失败：${e?.message ?? e}`, 'error');
     } finally {
       setSaving(false);
     }
@@ -123,8 +129,8 @@ export default function ConfigPanel({ config }: Props) {
   return (
     <div className="config">
       <div className="config-cols">
-        <section className="config-col">
-          <div className="config-group-title">必选</div>
+        <section className="config-col" data-kind="required">
+          <div className="config-group-title">数据源</div>
 
           <div className="config-row">
             <label>数据表</label>
@@ -132,7 +138,21 @@ export default function ConfigPanel({ config }: Props) {
               value={form.tableId ?? ''}
               onChange={(e) => {
                 const id = e.target.value;
-                update({ tableId: id, tableName: tables.find((t) => t.id === id)?.name });
+                // 换表后旧字段 id 已失效，统一清空，避免保存出脏配置
+                update({
+                  tableId: id,
+                  tableName: tables.find((t) => t.id === id)?.name,
+                  nameFieldId: undefined,
+                  locationFieldId: undefined,
+                  lngFieldId: undefined,
+                  latFieldId: undefined,
+                  provinceFieldId: undefined,
+                  cityFieldId: undefined,
+                  brandFieldId: undefined,
+                  funcFieldId: undefined,
+                  typeFieldId: undefined,
+                  modelFieldId: undefined,
+                });
               }}
             >
               <option value="">请选择数据表</option>
@@ -148,7 +168,14 @@ export default function ConfigPanel({ config }: Props) {
             <label>坐标来源</label>
             <select
               value={form.coordSource ?? 'lnglat'}
-              onChange={(e) => update({ coordSource: e.target.value as CoordSource })}
+              onChange={(e) =>
+                update({
+                  coordSource: e.target.value as CoordSource,
+                  locationFieldId: undefined,
+                  lngFieldId: undefined,
+                  latFieldId: undefined,
+                })
+              }
             >
               <option value="lnglat">经度字段 + 纬度字段</option>
               <option value="location">单个地理位置字段</option>
@@ -220,7 +247,7 @@ export default function ConfigPanel({ config }: Props) {
 
         </section>
 
-        <section className="config-col">
+        <section className="config-col" data-kind="optional">
           <div className="config-group-title">可选-地图筛选</div>
 
       <div className="config-row">
@@ -315,14 +342,24 @@ export default function ConfigPanel({ config }: Props) {
 
         </section>
 
-        <section className="config-col">
+        <section className="config-col" data-kind="optional">
           <div className="config-group-title">可选-保有量</div>
 
           <div className="config-row">
             <label>保有量子表</label>
             <select
               value={form.ownershipTableId ?? ''}
-              onChange={(e) => update({ ownershipTableId: e.target.value || undefined })}
+              onChange={(e) => {
+                const id = e.target.value || undefined;
+                // 换子表后旧字段 id 已失效，清空避免匹配不到
+                update({
+                  ownershipTableId: id,
+                  ownershipProvinceFieldId: undefined,
+                  ownershipCityFieldId: undefined,
+                  ownershipDistrictFieldId: undefined,
+                  ownershipValueFieldId: undefined,
+                });
+              }}
             >
               <option value="">（可选）不显示保有量</option>
               {tables.map((t) => (
@@ -333,13 +370,18 @@ export default function ConfigPanel({ config }: Props) {
             </select>
           </div>
 
+          {!form.ownershipTableId && (
+            <p className="config-hint">请先选择保有量子表，再配置下面的字段。</p>
+          )}
+
           <div className="config-row">
-            <label>省份字段</label>
+            <label>省份字段（子表）</label>
             <select
               value={form.ownershipProvinceFieldId ?? ''}
+              disabled={!form.ownershipTableId}
               onChange={(e) => update({ ownershipProvinceFieldId: e.target.value || undefined })}
             >
-              <option value="">（可选）请选择省份字段</option>
+              <option value="">请选择省份字段</option>
               {ownFields.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -349,12 +391,13 @@ export default function ConfigPanel({ config }: Props) {
           </div>
 
           <div className="config-row">
-            <label>城市字段</label>
+            <label>城市字段（子表）</label>
             <select
               value={form.ownershipCityFieldId ?? ''}
+              disabled={!form.ownershipTableId}
               onChange={(e) => update({ ownershipCityFieldId: e.target.value || undefined })}
             >
-              <option value="">（可选）请选择城市字段</option>
+              <option value="">请选择城市字段</option>
               {ownFields.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -364,12 +407,13 @@ export default function ConfigPanel({ config }: Props) {
           </div>
 
           <div className="config-row">
-            <label>区县名称字段</label>
+            <label>区县字段（子表）</label>
             <select
               value={form.ownershipDistrictFieldId ?? ''}
+              disabled={!form.ownershipTableId}
               onChange={(e) => update({ ownershipDistrictFieldId: e.target.value || undefined })}
             >
-              <option value="">（可选）请选择区县字段</option>
+              <option value="">请选择区县字段</option>
               {ownFields.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -382,9 +426,10 @@ export default function ConfigPanel({ config }: Props) {
             <label>保有量数值字段</label>
             <select
               value={form.ownershipValueFieldId ?? ''}
+              disabled={!form.ownershipTableId}
               onChange={(e) => update({ ownershipValueFieldId: e.target.value || undefined })}
             >
-              <option value="">（可选）请选择数值字段</option>
+              <option value="">请选择数值字段</option>
               {ownFields.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -396,10 +441,14 @@ export default function ConfigPanel({ config }: Props) {
         </section>
       </div>
 
-      <button className="config-save" disabled={saving} onClick={handleSave}>
-        {saving ? '保存中…' : '保存配置'}
-      </button>
-      {tip && <p className="config-tip">{tip}</p>}
+      <div className="config-actions">
+        <button className="config-save" disabled={saving} onClick={handleSave}>
+          {saving ? '保存中…' : '保存配置'}
+        </button>
+        {tip && (
+          <p className={'config-tip' + (tipKind !== 'info' ? ' is-' + tipKind : '')}>{tip}</p>
+        )}
+      </div>
     </div>
   );
 }
